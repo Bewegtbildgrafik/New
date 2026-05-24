@@ -1,7 +1,73 @@
 #include "FlagRenderer.h"
 
 #include <cstring>
+#include <cstdint>
 #include <limits>
+
+// ---------------------------------------------------------------------------
+// Loopable 4-D value noise
+//
+// Time is mapped to a 2-D circle:  (cos(2π·speed·t), sin(2π·speed·t))
+// This guarantees the noise returns to its start after exactly 1/speed seconds,
+// giving a seamless temporal loop regardless of the spatial parameters.
+// ---------------------------------------------------------------------------
+
+static inline float smooth(float t) { return t * t * (3.0f - 2.0f * t); }
+
+static uint32_t hash4i(int32_t x, int32_t y, int32_t z, int32_t w)
+{
+    uint32_t h = (static_cast<uint32_t>(x) * 1640531527u)
+               ^ (static_cast<uint32_t>(y) * 2654435789u)
+               ^ (static_cast<uint32_t>(z) * 805459861u)
+               ^ (static_cast<uint32_t>(w) * 3266489917u);
+    h ^= h >> 16; h *= 0x45d9f3bu; h ^= h >> 16;
+    return h;
+}
+
+static float hash4f(int x, int y, int z, int w)
+{
+    return static_cast<float>(hash4i(x, y, z, w) >> 8) * (1.0f / 16777216.0f);
+}
+
+// 4-D value noise in [0, 1]
+static float noise4D(float x, float y, float z, float w)
+{
+    const int ix = static_cast<int>(std::floor(x));
+    const int iy = static_cast<int>(std::floor(y));
+    const int iz = static_cast<int>(std::floor(z));
+    const int iw = static_cast<int>(std::floor(w));
+
+    const float fx = x - ix, fy = y - iy, fz = z - iz, fw = w - iw;
+    const float ux = smooth(fx), uy = smooth(fy), uz = smooth(fz), uw = smooth(fw);
+
+    float n = 0.0f;
+    for (int dw = 0; dw <= 1; ++dw) {
+        const float lw = dw ? uw : 1.0f - uw;
+        for (int dz = 0; dz <= 1; ++dz) {
+            const float lz = dz ? uz : 1.0f - uz;
+            for (int dy = 0; dy <= 1; ++dy) {
+                const float ly = dy ? uy : 1.0f - uy;
+                for (int dx = 0; dx <= 1; ++dx) {
+                    const float lx = dx ? ux : 1.0f - ux;
+                    n += hash4f(ix+dx, iy+dy, iz+dz, iw+dw) * lx * ly * lz * lw;
+                }
+            }
+        }
+    }
+    return n;
+}
+
+// 3-octave fBm — returns value in approximately [-1, 1] (centred)
+static float fbm4D(float x, float y, float z, float w)
+{
+    float v = 0.0f, amp = 0.5f, total_amp = 0.0f;
+    for (int i = 0; i < 3; ++i) {
+        v         += noise4D(x, y, z, w) * amp;
+        total_amp += amp;
+        amp *= 0.5f; x *= 2.0f; y *= 2.0f; z *= 2.0f; w *= 2.0f;
+    }
+    return (v / total_amp) * 2.0f - 1.0f;   // remap [0,1] → [-1,1]
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,24 +132,49 @@ void FlagRenderer::BuildMesh(const FlagParams& p,
     const float dU  = 1.0f / static_cast<float>(nx);
     const float dV  = 1.0f / static_cast<float>(ny);
 
-    // For central-difference normals we need one extra phase computation; we
-    // use a small fractional epsilon in u.
-    const float eps = dU * 0.25f;
+    // Pre-compute circular time coordinates for loopable 4-D noise.
+    // The circle has radius 0.5 in noise space; one full revolution per 1/noise_speed seconds.
+    const float n_angle = static_cast<float>(2.0 * M_PI) * p.noise_speed * p.time_seconds;
+    const float tz = std::cos(n_angle) * 0.5f;
+    const float tw = std::sin(n_angle) * 0.5f;
 
     for (int iy = 0; iy < rows; ++iy) {
         for (int ix = 0; ix < cols; ++ix) {
             const float u = ix * dU;   // 0 = pole, 1 = free end
             const float v = iy * dV;   // 0 = top,  1 = bottom
 
-            // Base phase: advances in u (space) and backward in time
+            // ---- Primary sine wave ----------------------------------------
             const float phase = static_cast<float>(2.0 * M_PI)
                                  * (p.frequency * u - p.speed * p.time_seconds);
+            float z = WaveZ(u, phase, amp, p.complexity);
 
-            const float z = WaveZ(u, phase, amp, p.complexity);
+            // ---- Loopable organic noise overlay ----------------------------
+            if (p.noise_amount > 0.001f) {
+                const float ns = std::max(0.1f, p.noise_scale);
 
-            // Small gravity sag along the vertical axis — sinusoidal, zero at edges
+                // Z-noise: modulates the wave amplitude locally — breaks
+                // the mechanical uniformity of the sine pattern
+                float nz = fbm4D(u * ns, v * ns * 0.6f, tz, tw);
+                z += nz * amp * p.noise_amount * u;
+
+                // Y-noise: small vertical perturbation (cross-waves) —
+                // the corners and edges move slightly independently
+                float ny_val = fbm4D(u * ns * 0.7f + 5.3f, v * ns + 2.1f, tz, tw);
+                const float cross_wave = ny_val * flag_h * 0.06f * p.noise_amount * u;
+
+                // Store a temporary Y offset in z for now; applied below
+                FlagVertex& vert = m_mesh[iy * cols + ix];
+                const float sag = 0.04f * flag_h * u * std::sin(v * static_cast<float>(M_PI));
+                vert.world = {(u - 0.5f) * flag_w,
+                              -(v - 0.5f) * flag_h - sag + cross_wave,
+                              z};
+                vert.u = u;
+                vert.v = v;
+                continue;
+            }
+
+            // ---- No noise — pure sine path --------------------------------
             const float sag = 0.04f * flag_h * u * std::sin(v * static_cast<float>(M_PI));
-
             FlagVertex& vert = m_mesh[iy * cols + ix];
             vert.world = {(u - 0.5f) * flag_w,
                           -(v - 0.5f) * flag_h - sag,

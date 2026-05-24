@@ -97,7 +97,29 @@ static PF_Err ParamsSetup(PF_InData* in_data, PF_OutData* out_data,
     AEFX_CLR_STRUCT(def);
     PF_END_TOPIC(PARAM_GROUP_WAVE_END);
 
-    // 4 — Lighting group
+    // 4 — Organic noise group
+    AEFX_CLR_STRUCT(def);
+    PF_ADD_TOPIC("Organic Noise", PARAM_GROUP_NOISE_START);
+
+    AEFX_CLR_STRUCT(def);
+    PF_ADD_FLOAT_SLIDERX("Noise Amount",
+        0.0, 1.0, 0.0, 1.0, 0.35,
+        PF_Precision_HUNDREDTHS, 0, 0, PARAM_NOISE_AMOUNT);
+
+    AEFX_CLR_STRUCT(def);
+    PF_ADD_FLOAT_SLIDERX("Noise Scale",
+        0.1, 6.0, 0.1, 6.0, 1.5,
+        PF_Precision_HUNDREDTHS, 0, 0, PARAM_NOISE_SCALE);
+
+    AEFX_CLR_STRUCT(def);
+    PF_ADD_FLOAT_SLIDERX("Noise Speed (cycles/s)",
+        0.05, 4.0, 0.05, 4.0, 0.55,
+        PF_Precision_HUNDREDTHS, 0, 0, PARAM_NOISE_SPEED);
+
+    AEFX_CLR_STRUCT(def);
+    PF_END_TOPIC(PARAM_GROUP_NOISE_END);
+
+    // 5 — Lighting group
     AEFX_CLR_STRUCT(def);
     PF_ADD_TOPIC("Lighting", PARAM_GROUP_LIGHT_START);
 
@@ -149,6 +171,10 @@ static FlagParams CollectParams(PF_InData* in_data, PF_ParamDef* params[])
     fp.frequency     = static_cast<float>(params[PARAM_FREQUENCY]->u.fs_d.value);
     fp.speed         = static_cast<float>(params[PARAM_SPEED]->u.fs_d.value);
     fp.complexity    = static_cast<int>  (params[PARAM_COMPLEXITY]->u.pd.value);  // 1-based
+
+    fp.noise_amount  = static_cast<float>(params[PARAM_NOISE_AMOUNT]->u.fs_d.value);
+    fp.noise_scale   = static_cast<float>(params[PARAM_NOISE_SCALE]->u.fs_d.value);
+    fp.noise_speed   = static_cast<float>(params[PARAM_NOISE_SPEED]->u.fs_d.value);
 
     // Angle param stores value in degrees * 65536 (fixed-point)
     fp.light_angle     = static_cast<float>(params[PARAM_LIGHT_ANGLE]->u.ad.value)
@@ -237,6 +263,9 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
         CKOUT(PARAM_FREQUENCY);
         CKOUT(PARAM_SPEED);
         CKOUT(PARAM_COMPLEXITY);
+        CKOUT(PARAM_NOISE_AMOUNT);
+        CKOUT(PARAM_NOISE_SCALE);
+        CKOUT(PARAM_NOISE_SPEED);
         CKOUT(PARAM_LIGHT_ANGLE);
         CKOUT(PARAM_LIGHT_ELEVATION);
         CKOUT(PARAM_LIGHT_INTENSITY);
@@ -259,6 +288,9 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
         CKIN(PARAM_FREQUENCY);
         CKIN(PARAM_SPEED);
         CKIN(PARAM_COMPLEXITY);
+        CKIN(PARAM_NOISE_AMOUNT);
+        CKIN(PARAM_NOISE_SCALE);
+        CKIN(PARAM_NOISE_SPEED);
         CKIN(PARAM_LIGHT_ANGLE);
         CKIN(PARAM_LIGHT_ELEVATION);
         CKIN(PARAM_LIGHT_INTENSITY);

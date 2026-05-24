@@ -65,6 +65,11 @@ struct FlagParams {
     float speed;            // wave cycles per second → loop period = 1/speed
     int   complexity;       // number of harmonic modes: 1-4
 
+    // Organic noise (loopable 4-D value noise)
+    float noise_amount;     // 0-1: blend fraction added on top of the sine wave
+    float noise_scale;      // spatial frequency of the noise pattern
+    float noise_speed;      // temporal speed; loop period = 1/noise_speed seconds
+
     // Lighting
     float light_angle;      // horizontal light direction in degrees (0 = front-left)
     float light_elevation;  // elevation above horizon in degrees (0-90)
