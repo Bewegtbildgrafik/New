@@ -8,6 +8,7 @@
  */
 
 #include "AEConfig.h"
+#include "AE_General.r"
 #include "AE_EffectVers.h"
 
 #define plugInName      "3D Flag"
