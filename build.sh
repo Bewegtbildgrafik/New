@@ -23,7 +23,6 @@ clang++ \
   -o AE3DFlag.dylib \
   src/AE3DFlag.cpp \
   src/FlagRenderer.cpp \
-  "$SDK/Util/AEGP_SuiteHandler.cpp" \
   "$SDK/Util/AEFX_SuiteHelper.c"
 
 echo "==> Creating bundle structure..."
