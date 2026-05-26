@@ -319,8 +319,6 @@ PF_Err EffectMain(
 {
     PF_Err err = PF_Err_NONE;
 
-    AEGP_SuiteHandler suites(in_data->pica_basicP);
-
     switch (cmd) {
         case PF_Cmd_ABOUT:
             err = About(in_data, out_data);

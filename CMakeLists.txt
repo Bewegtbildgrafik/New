@@ -31,6 +31,9 @@ set(AE_SDK_HEADERS
 set(PLUGIN_SOURCES
     src/AE3DFlag.cpp
     src/FlagRenderer.cpp
+    # Required SDK utility files
+    "${AE_SDK_DIR}/Util/AEGP_SuiteHandler.cpp"
+    "${AE_SDK_DIR}/Util/AEFX_SuiteHelper.c"
 )
 
 set(PLUGIN_HEADERS

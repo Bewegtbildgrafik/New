@@ -6,7 +6,6 @@
 #include "AE_Macros.h"
 #include "AE_EffectCBSuites.h"
 #include "AE_GeneralPlug.h"
-#include "AEGP_SuiteHandler.h"
 
 #define PLUGIN_NAME         "3D Flag"
 #define PLUGIN_MATCH_NAME   "BBGF_3DFlag"
