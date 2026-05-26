@@ -80,13 +80,23 @@ if(APPLE)
         -exported_symbol _EffectMain
     )
 
-    # PiPL resource: compile the .r file and embed it in the bundle
-    find_program(REZ_TOOL Rez
-        PATHS /usr/bin /Developer/Tools
-              "${AE_SDK_DIR}/Resources"
-        NO_DEFAULT_PATH)
+    # PiPL resource: find Rez via xcrun (modern macOS) or fallback paths
+    execute_process(
+        COMMAND xcrun --find Rez
+        OUTPUT_VARIABLE REZ_TOOL
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+
+    if(NOT REZ_TOOL)
+        find_program(REZ_TOOL Rez
+            PATHS /usr/bin /Developer/Tools
+                  "/Applications/Xcode.app/Contents/Developer/usr/bin"
+                  "${AE_SDK_DIR}/Resources"
+            NO_DEFAULT_PATH)
+    endif()
 
     if(REZ_TOOL)
+        message(STATUS "Rez found: ${REZ_TOOL}")
         set(PIPL_R   "${CMAKE_CURRENT_SOURCE_DIR}/res/AE3DFlag.r")
         set(PIPL_RSC "${CMAKE_CURRENT_BINARY_DIR}/AE3DFlag.rsrc")
 
@@ -104,23 +114,22 @@ if(APPLE)
                     -o ${PIPL_RSC}
                     ${PIPL_R}
             DEPENDS ${PIPL_R}
-            COMMENT "Compiling PiPL resource"
+            COMMENT "Compiling PiPL resource with ${REZ_TOOL}"
         )
         add_custom_target(PiPL_Resource DEPENDS ${PIPL_RSC})
         add_dependencies(AE3DFlag PiPL_Resource)
 
         # Copy .rsrc into the bundle Resources folder after linking
         add_custom_command(TARGET AE3DFlag POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "$<TARGET_BUNDLE_CONTENT_DIR:AE3DFlag>/Resources"
             COMMAND ${CMAKE_COMMAND} -E copy
                     ${PIPL_RSC}
                     "$<TARGET_BUNDLE_CONTENT_DIR:AE3DFlag>/Resources/AE3DFlag.rsrc"
             COMMENT "Embedding PiPL resource in bundle"
         )
     else()
-        message(WARNING
-            "Rez not found — PiPL resource will NOT be compiled.\n"
-            "Use the AE SDK's PiPLtool to pre-compile res/AE3DFlag.r "
-            "and add the resulting .rsrc to the bundle manually.")
+        message(WARNING "Rez not found — PiPL resource will NOT be compiled.")
     endif()
 endif()
 
