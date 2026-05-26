@@ -110,7 +110,7 @@ if(APPLE)
             OUTPUT  ${PIPL_RSC}
             COMMAND ${REZ_TOOL}
                     ${REZ_INCLUDE_FLAGS}
-                    -DAE_OS_MAC=1 -DAE_PROC_ARM64=1
+                    -d AE_OS_MAC=1 -d AE_PROC_ARM64=1
                     -o ${PIPL_RSC}
                     ${PIPL_R}
             DEPENDS ${PIPL_R}
