@@ -215,10 +215,15 @@ static PF_Err SmartPreRender(PF_InData* in_data, PF_OutData* out_data,
             &layer_result));
 
     if (!err) {
-        // Output covers the full comp frame
-        UnionLRect(&layer_result.result_rect,    &extra->output->result_rect);
-        UnionLRect(&layer_result.max_result_rect, &extra->output->max_result_rect);
-        extra->output->solid          = FALSE;
+        auto unionR = [](const PF_LRect& src, PF_LRect& dst) {
+            if (src.left   < dst.left)   dst.left   = src.left;
+            if (src.top    < dst.top)    dst.top    = src.top;
+            if (src.right  > dst.right)  dst.right  = src.right;
+            if (src.bottom > dst.bottom) dst.bottom = src.bottom;
+        };
+        unionR(layer_result.result_rect,     extra->output->result_rect);
+        unionR(layer_result.max_result_rect, extra->output->max_result_rect);
+        extra->output->solid           = FALSE;
         extra->output->pre_render_data = nullptr;
     }
     return err;
